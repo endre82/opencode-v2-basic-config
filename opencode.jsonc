@@ -1,0 +1,77 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Default model for new sessions
+  "model": "ollama-cloud/glm-5.3-flash",
+
+  // Role variants: temperature + reasoning effort ride on request-body overlays.
+  // reasoning_effort values verified against Ollama OpenAI-compat API (low|high|max)
+  // and models.dev catalog for both models.
+  "providers": {
+    "ollama-cloud": {
+      "models": {
+        "glm-5.3-flash": {
+          "variants": [
+            // Engineer/planner
+            { "id": "plan", "body": { "temperature": 0.6, "reasoning_effort": "high" } },
+            // Developer/coder
+            { "id": "code", "body": { "temperature": 0.1, "reasoning_effort": "low" } }
+          ]
+        },
+        "deepseek-v4.1-flash": {
+          "variants": [
+            // Reviewer
+            { "id": "review", "body": { "temperature": 0.3, "reasoning_effort": "high" } }
+          ]
+        }
+      }
+    }
+  },
+
+  // Subagents: system prompts are composed here, referenced via {file:...}
+  // (relative to this config file's directory; expansion happens pre-parse,
+  // so references must live here, not inside the prompt files).
+  "agents": {
+    "engineer": {
+      "description": "Planning subagent. Launch to produce a detailed implementation plan. Pass a self-contained brief: goal, constraints, codebase pointers, expected output. Returns the complete plan with an implementation-units table (developer-subagent vs build-direct per unit). Never edits project files.",
+      "mode": "subagent",
+      "model": "ollama-cloud/glm-5.3-flash#plan",
+      "system": "{file:./prompts/shared.md}\n\n---\n\n{file:./prompts/engineer.md}",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "~/.opencode/plan/*", "effect": "allow" },
+        { "action": "external_directory", "resource": "~/.opencode/plan/*", "effect": "allow" },
+        { "action": "shell", "resource": "*", "effect": "ask" },
+        { "action": "question", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "developer": {
+      "description": "Coding subagent. Launch to implement an approved plan or a self-contained coding task. Pass the plan verbatim with codebase pointers. Returns a change report: what was implemented, files changed, verification results, deviations. Makes minimal focused diffs, matches existing style.",
+      "mode": "subagent",
+      "model": "ollama-cloud/glm-5.3-flash#code",
+      "system": "{file:./prompts/shared.md}\n\n---\n\n{file:./prompts/developer.md}",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "allow" },
+        { "action": "question", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "reviewer": {
+      "description": "Review subagent. Launch to review a completed plan (pre-implementation) or the current changes/diff (post-implementation). Pass the artifact plus intent. Returns findings in severity order with file/line references and a verdict: APPROVE, APPROVE WITH CHANGES, or REQUEST CHANGES. Read-only.",
+      "mode": "subagent",
+      "model": "ollama-cloud/deepseek-v4.1-flash#review",
+      "system": "{file:./prompts/shared.md}\n\n---\n\n{file:./prompts/reviewer.md}",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" }
+      ]
+    },
+
+    // Built-in build agent: keep its prompt untouched, tighten one dangerous shell op.
+    "build": {
+      "permissions": [
+        { "action": "shell", "resource": "git push *", "effect": "ask" }
+      ]
+    }
+  }
+}
