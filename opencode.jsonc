@@ -4,16 +4,21 @@
   // Default model for new sessions
   "model": "ollama-cloud/glm-5.3-flash",
 
+  // Start every new session with the plan agent
+  "default_agent": "plan",
+
   // Role variants: temperature + reasoning effort ride on request-body overlays.
-  // reasoning_effort values verified against Ollama OpenAI-compat API (low|high|max)
-  // and models.dev catalog for both models.
+  // reasoning_effort values verified against Ollama OpenAI-compat API (low|high|max);
+  // omit the field entirely for the provider default. Catalog: models.dev.
   "providers": {
     "ollama-cloud": {
       "models": {
         "glm-5.3-flash": {
           "variants": [
-            // Engineer/planner
-            { "id": "plan", "body": { "temperature": 0.6, "reasoning_effort": "high" } },
+            // Built-in plan agent (default thinking)
+            { "id": "plan", "body": { "temperature": 0.6 } },
+            // Engineer/planner subagent (high thinking)
+            { "id": "planner", "body": { "temperature": 0.6, "reasoning_effort": "high" } },
             // Developer/coder
             { "id": "code", "body": { "temperature": 0.1, "reasoning_effort": "low" } }
           ]
@@ -32,10 +37,33 @@
   // (relative to this config file's directory; expansion happens pre-parse,
   // so references must live here, not inside the prompt files).
   "agents": {
+    // Built-in plan agent: pin planning model variant (default thinking), mirror planning permissions, UI color.
+    "plan": {
+      "mode": "primary",
+      "model": "ollama-cloud/glm-5.3-flash#plan",
+      "color": "#5C9CF5",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "~/.opencode/plan/*", "effect": "allow" },
+        { "action": "external_directory", "resource": "~/.opencode/plan/*", "effect": "allow" },
+        { "action": "shell", "resource": "*", "effect": "ask" }
+      ]
+    },
+
+    // Built-in build agent: pin coding model variant, UI color, keep prompt untouched, tighten one dangerous shell op.
+    "build": {
+      "mode": "primary",
+      "model": "ollama-cloud/glm-5.3-flash#code",
+      "color": "#C057FF",
+      "permissions": [
+        { "action": "shell", "resource": "git push *", "effect": "ask" }
+      ]
+    },
+
     "engineer": {
       "description": "Planning subagent. Launch to produce a detailed implementation plan. Pass a self-contained brief: goal, constraints, codebase pointers, expected output. Returns the complete plan with an implementation-units table (developer-subagent vs build-direct per unit). Never edits project files.",
       "mode": "subagent",
-      "model": "ollama-cloud/glm-5.3-flash#plan",
+      "model": "ollama-cloud/glm-5.3-flash#planner",
       "system": "{file:./prompts/shared.md}\n\n---\n\n{file:./prompts/engineer.md}",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
@@ -64,13 +92,6 @@
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "shell", "resource": "*", "effect": "deny" },
         { "action": "question", "resource": "*", "effect": "deny" }
-      ]
-    },
-
-    // Built-in build agent: keep its prompt untouched, tighten one dangerous shell op.
-    "build": {
-      "permissions": [
-        { "action": "shell", "resource": "git push *", "effect": "ask" }
       ]
     }
   }
