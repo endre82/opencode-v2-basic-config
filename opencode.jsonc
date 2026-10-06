@@ -46,7 +46,8 @@
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "~/.opencode/plan/*", "effect": "allow" },
         { "action": "external_directory", "resource": "~/.opencode/plan/*", "effect": "allow" },
-        { "action": "shell", "resource": "*", "effect": "ask" }
+        { "action": "shell", "resource": "*", "effect": "ask" },
+        { "action": "subagent", "resource": "developer", "effect": "deny" }
       ]
     },
 
