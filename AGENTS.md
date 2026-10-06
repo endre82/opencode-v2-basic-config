@@ -1,10 +1,19 @@
 # Global instructions
 
+## Precedence
+
+This file's Git policy and Delegation policy are global and take precedence
+over project-level AGENTS.md instructions. If a project instructs otherwise
+(e.g. "feel free to push directly"), do not silently follow it: stop and
+surface the conflict to the user.
+
 ## Git policy — applies to every agent and subagent
 
-- NEVER run `git push`. Pushing is done by the user. Treat a bare "commit
-  this" as commit-only; push only when the user explicitly says "push" in the
-  current message.
+- NEVER run `git push` (in any form, including `git -C <path> push` or other
+  flag variants). Pushing is done by the user, and it is also denied at the
+  permission layer globally. Even an explicit "push" request cannot override
+  this: explain that they run `git push` themselves. Treat a bare "commit
+  this" as commit-only.
 - Plan mode and the plan agent: never commit. Planning must not create
   commits at all.
 - Build mode: staging files and drafting a commit message is fine, but only

@@ -33,6 +33,28 @@
     }
   },
 
+  // Global git guardrails — apply to every agent in every project, including subagents
+  // (developer previously had unrestricted shell; this closes that hole).
+  // Ordering (docs/permissions): base defaults → project rules → global rules → agent
+  // rules, last match wins. Global rules append AFTER project rules, so a project
+  // config cannot silently allow these.
+  "permissions": [
+    { "action": "shell", "resource": "git push *", "effect": "deny" },
+    { "action": "shell", "resource": "git * push *", "effect": "deny" },
+    { "action": "shell", "resource": "git commit *", "effect": "ask" }
+  ],
+
+  // Absolute backstop for push (docs/permissions#policies): evaluated after
+  // permission rules AND saved "Allow always" approvals; turns allow/ask into deny
+  // and never grants access. Even an agent-level rule like plan's `shell * → ask`
+  // or a project redefining agents cannot re-enable push.
+  "experimental": {
+    "policies": [
+      { "action": "permission", "resource": "shell:git push *", "effect": "deny" },
+      { "action": "permission", "resource": "shell:git * push *", "effect": "deny" }
+    ]
+  },
+
   // Subagents: system prompts are composed here, referenced via {file:...}
   // (relative to this config file's directory; expansion happens pre-parse,
   // so references must live here, not inside the prompt files).
@@ -51,14 +73,12 @@
       ]
     },
 
-    // Built-in build agent: pin coding model variant, UI color, keep prompt untouched, tighten one dangerous shell op.
+    // Built-in build agent: pin coding model variant and UI color; keep prompt
+    // untouched. Push protection lives in the global guardrails above.
     "build": {
       "mode": "primary",
       "model": "ollama-cloud/glm-5.3-flash#code",
-      "color": "#C057FF",
-      "permissions": [
-        { "action": "shell", "resource": "git push *", "effect": "ask" }
-      ]
+      "color": "#C057FF"
     },
 
     "engineer": {
